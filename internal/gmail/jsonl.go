@@ -1,12 +1,7 @@
 package gmail
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
 	"net/mail"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"google.golang.org/api/gmail/v1"
@@ -108,32 +103,4 @@ func parseRecipients(recipients string) []string {
 		result = append(result, addr.String())
 	}
 	return result
-}
-
-func DownloadAttachments(ctx context.Context, client *Client, emails []*Email, outputDir string) error {
-	attachDir := filepath.Join(outputDir, "attachments")
-	if err := os.MkdirAll(attachDir, 0755); err != nil {
-		return fmt.Errorf("failed to create attachments directory: %w", err)
-	}
-
-	for _, email := range emails {
-		if len(email.Attachments) == 0 {
-			continue
-		}
-
-		emailAttachDir := filepath.Join(attachDir, email.ID)
-		if err := os.MkdirAll(emailAttachDir, 0755); err != nil {
-			slog.Warn("Failed to create email attachment directory", "email_id", email.ID, "error", err)
-			continue
-		}
-
-		for _, att := range email.Attachments {
-			if err := client.DownloadAttachment(ctx, email.ID, att.ID, att.Filename, emailAttachDir); err != nil {
-				slog.Warn("Failed to download attachment",
-					"filename", att.Filename, "email_id", email.ID, "error", err)
-			}
-		}
-	}
-
-	return nil
 }

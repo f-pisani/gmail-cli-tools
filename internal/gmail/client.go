@@ -43,7 +43,6 @@ func (c *Client) GetMessagesByQuery(ctx context.Context, query string, limit int
 
 	// Gmail API max is 500 per page
 	const maxPageSize int64 = 500
-
 	for {
 		remaining := limit - int64(len(allMessages))
 		if remaining <= 0 {
@@ -88,41 +87,4 @@ func (c *Client) GetMessagesByQuery(ctx context.Context, query string, limit int
 	}
 
 	return allMessages, nil
-}
-
-func (c *Client) GetEmailsByLabelName(ctx context.Context, labelName string, limit int64) ([]*gmail.Message, error) {
-	// This supports both standard labels (INBOX, SENT) and custom labels
-	query := fmt.Sprintf("label:%s", labelName)
-	messages, err := c.GetMessagesByQuery(ctx, query, limit)
-
-	if err == nil && len(messages) > 0 {
-		return messages, nil
-	}
-
-	firstErr := err
-
-	labelID, labelErr := c.GetLabelID(ctx, labelName)
-	if labelErr == nil {
-		query = fmt.Sprintf("label:%s", labelID)
-		messages, err = c.GetMessagesByQuery(ctx, query, limit)
-		if err == nil {
-			return messages, nil
-		}
-	}
-
-	if firstErr != nil {
-		return nil, fmt.Errorf("unable to find emails with label '%s': direct query failed: %v, label ID query failed: %v", labelName, firstErr, err)
-	}
-
-	return messages, nil
-}
-
-func (c *Client) ListLabels(ctx context.Context) ([]*gmail.Label, error) {
-	user := "me"
-	labelsCall := c.service.Users.Labels.List(user)
-	labels, err := labelsCall.Context(ctx).Do()
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve labels: %v", err)
-	}
-	return labels.Labels, nil
 }

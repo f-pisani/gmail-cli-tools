@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"net/mail"
 	"strings"
 	"time"
 
@@ -32,40 +31,6 @@ type Email struct {
 	MarkdownBody string
 	Labels       []string
 	Attachments  []Attachment
-}
-
-func ParseMessage(msg *gmail.Message) (*Email, error) {
-	email := &Email{
-		ID:          msg.Id,
-		Labels:      msg.LabelIds,
-		Attachments: []Attachment{},
-	}
-
-	headers := msg.Payload.Headers
-	for _, header := range headers {
-		switch header.Name {
-		case "From":
-			email.From = header.Value
-		case "To":
-			email.To = header.Value
-		case "Subject":
-			email.Subject = header.Value
-		case "Date":
-			parsedTime, err := mail.ParseDate(header.Value)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse date '%s': %w", header.Value, err)
-			}
-			email.Date = parsedTime
-		}
-	}
-
-	extractContent(msg.Payload, email)
-
-	if err := convertToMarkdown(email, false, false); err != nil {
-		return nil, fmt.Errorf("failed to convert to markdown: %w", err)
-	}
-
-	return email, nil
 }
 
 func extractContent(payload *gmail.MessagePart, email *Email) {

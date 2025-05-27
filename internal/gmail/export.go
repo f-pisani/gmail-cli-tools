@@ -9,7 +9,6 @@ import (
 	"net/mail"
 	"os"
 	"path/filepath"
-	"time"
 
 	"google.golang.org/api/gmail/v1"
 )
@@ -52,13 +51,8 @@ func ExportToJSONL(ctx context.Context, client *Client, messages []*gmail.Messag
 			slog.Info("Processing emails", "progress", fmt.Sprintf("%d/%d", i+1, len(messages)))
 		}
 
-		// Add a small delay every 50 messages to avoid rate limits
-		if i > 0 && i%50 == 0 {
-			time.Sleep(1 * time.Second)
-		}
-
 		// Messages already have full details from GetMessagesByQuery
-		email, err := ParseMessageWithOptions(msg, options.StripImages, options.StripLinks)
+		email, err := ParseMessage(msg, options.StripImages, options.StripLinks)
 		if err != nil {
 			slog.Warn("Failed to parse message", "id", msg.Id, "error", err)
 			continue
@@ -84,42 +78,44 @@ func ExportToJSONL(ctx context.Context, client *Client, messages []*gmail.Messag
 			parsedEmails = append(parsedEmails, email)
 		}
 	}
-
 	slog.Info("Export completed", "total", len(messages), "output", options.OutputFile)
 
 	// Download attachments after all emails are exported
-	if options.IncludeAttachments && len(parsedEmails) > 0 {
-		slog.Info("Downloading attachments", "directory", options.AttachmentsDir)
+	if !options.IncludeAttachments || len(parsedEmails) == 0 {
+		return nil
+	}
 
-		if err := os.MkdirAll(options.AttachmentsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create attachments directory: %w", err)
+	slog.Info("Downloading attachments", "directory", options.AttachmentsDir)
+	if err := os.MkdirAll(options.AttachmentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create attachments directory: %w", err)
+	}
+
+	for i, email := range parsedEmails {
+		if i%10 == 0 {
+			slog.Info("Downloading attachments", "progress", fmt.Sprintf("%d/%d", i+1, len(parsedEmails)))
 		}
 
-		for i, email := range parsedEmails {
-			if i%10 == 0 {
-				slog.Info("Downloading attachments", "progress", fmt.Sprintf("%d/%d", i+1, len(parsedEmails)))
-			}
+		emailAttachDir := filepath.Join(options.AttachmentsDir, email.ID)
+		if err := os.MkdirAll(emailAttachDir, 0755); err != nil {
+			slog.Warn("Failed to create email attachment directory", "email_id", email.ID, "error", err)
+			continue
+		}
 
-			emailAttachDir := filepath.Join(options.AttachmentsDir, email.ID)
-			if err := os.MkdirAll(emailAttachDir, 0755); err != nil {
-				slog.Warn("Failed to create email attachment directory", "email_id", email.ID, "error", err)
+		for _, att := range email.Attachments {
+			if err := client.DownloadAttachment(ctx, email.ID, att.ID, att.Filename, emailAttachDir); err != nil {
+				slog.Warn("Failed to download attachment", "filename", att.Filename, "message_id", email.ID, "error", err)
 				continue
 			}
 
-			for _, att := range email.Attachments {
-				if err := client.DownloadAttachment(ctx, email.ID, att.ID, att.Filename, emailAttachDir); err != nil {
-					slog.Warn("Failed to download attachment",
-						"filename", att.Filename, "email_id", email.ID, "error", err)
-				}
-			}
+			slog.Info("Downloaded attachment", "filename", att.Filename, "message_id", email.ID)
 		}
 	}
 
 	return nil
 }
 
-// ParseMessageWithOptions parses a message with strip options for markdown
-func ParseMessageWithOptions(msg *gmail.Message, stripImages, stripLinks bool) (*Email, error) {
+// ParseMessage parses a message with strip options for markdown
+func ParseMessage(msg *gmail.Message, stripImages, stripLinks bool) (*Email, error) {
 	email := &Email{
 		ID:          msg.Id,
 		Labels:      msg.LabelIds,
@@ -145,7 +141,6 @@ func ParseMessageWithOptions(msg *gmail.Message, stripImages, stripLinks bool) (
 	}
 
 	extractContent(msg.Payload, email)
-
 	if err := convertToMarkdown(email, stripImages, stripLinks); err != nil {
 		return nil, fmt.Errorf("failed to convert to markdown: %w", err)
 	}

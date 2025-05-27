@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -29,26 +28,6 @@ func (c *Client) DownloadAttachment(ctx context.Context, messageID, attachmentID
 	outputPath := filepath.Join(outputDir, filename)
 	if err := os.WriteFile(outputPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write attachment to file: %v", err)
-	}
-
-	slog.InfoContext(ctx, "Downloaded attachment",
-		"filename", filename,
-		"path", outputPath,
-		"message_id", messageID)
-	return nil
-}
-
-func (c *Client) DownloadAllAttachments(ctx context.Context, email *Email, outputDir string) error {
-	if len(email.Attachments) == 0 {
-		return nil
-	}
-
-	emailDir := filepath.Join(outputDir, fmt.Sprintf("email_%s", email.ID))
-
-	for _, att := range email.Attachments {
-		if err := c.DownloadAttachment(ctx, email.ID, att.ID, att.Filename, emailDir); err != nil {
-			return fmt.Errorf("failed to download %s: %v", att.Filename, err)
-		}
 	}
 
 	return nil
