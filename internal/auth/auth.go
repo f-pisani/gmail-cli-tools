@@ -19,14 +19,18 @@ import (
 	"github.com/f-pisani/gmail-cli-tools/internal/utils"
 )
 
-func getClientWithTokenSource(ctx context.Context, config *oauth2.Config) *http.Client {
+func getClientWithTokenSource(ctx context.Context, config *oauth2.Config) (*http.Client, error) {
 	accessTokenFile := "token.json"
 	tok, err := readAccessTokenFromFile(accessTokenFile)
 	if err != nil {
-		tok = getTokenFromWeb(ctx, config)
+		tok, err = getTokenFromWeb(ctx, config)
+		if err != nil {
+			return nil, err
+		}
 
-		// TODO: unhandled error, should propagate
-		saveToken(accessTokenFile, tok)
+		if err := saveToken(accessTokenFile, tok); err != nil {
+			return nil, err
+		}
 	}
 
 	tokenSource := config.TokenSource(ctx, tok)
@@ -34,22 +38,25 @@ func getClientWithTokenSource(ctx context.Context, config *oauth2.Config) *http.
 	newToken, err := tokenSource.Token()
 	if err != nil {
 		slog.Warn("Error refreshing token", "error", err)
-		tok = getTokenFromWeb(ctx, config)
+		tok, err = getTokenFromWeb(ctx, config)
+		if err != nil {
+			return nil, err
+		}
 
-		// TODO: unhandled error, should propagate
-		saveToken(accessTokenFile, tok)
-		return config.Client(ctx, tok)
+		if err := saveToken(accessTokenFile, tok); err != nil {
+			return nil, err
+		}
+		return config.Client(ctx, tok), nil
 	}
 
 	if newToken.AccessToken != tok.AccessToken {
-		slog.Info("Token refreshed automatically")
-
-		// TODO: unhandled error, should propagate
-		saveToken(accessTokenFile, newToken)
+		if err := saveToken(accessTokenFile, newToken); err != nil {
+			return nil, err
+		}
 		tok = newToken
 	}
 
-	return oauth2.NewClient(ctx, tokenSource)
+	return oauth2.NewClient(ctx, tokenSource), nil
 }
 
 func generateStateToken() (string, error) {
@@ -61,9 +68,10 @@ func generateStateToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
+func getTokenFromWeb(ctx context.Context, config *oauth2.Config) (*oauth2.Token, error) {
 	codeCh := make(chan string)
 	stateCh := make(chan string)
+	errCh := make(chan error)
 
 	server := &http.Server{Addr: ":8080"}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -94,9 +102,7 @@ func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 	go func() {
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Server failed to start", "error", err)
-
-			// TODO: why are we calling os.Exit, should propagate error
-			os.Exit(1)
+			errCh <- err
 		}
 	}()
 
@@ -108,8 +114,7 @@ func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 
 	stateToken, err := generateStateToken()
 	if err != nil {
-		slog.Error("Failed to generate state token", "error", err)
-		os.Exit(1)
+		return nil, err
 	}
 
 	config.RedirectURL = "http://localhost:8080"
@@ -119,32 +124,23 @@ func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 	utils.OpenBrowserURL(authURL)
 
 	select {
+	case err := <-errCh:
+		return nil, err
 	case code := <-codeCh:
 		receivedState := <-stateCh
 		if receivedState != stateToken {
-			slog.Error("Invalid state token received", "expected", stateToken, "received", receivedState)
-
-			// TODO: why are we calling os.Exit, should return err and propagate properly
-			os.Exit(1)
+			return nil, errors.New("invalid state token received")
 		}
 
 		tok, err := config.Exchange(ctx, code)
 		if err != nil {
-			slog.Error("Unable to retrieve token from authorization code", "error", err)
-
-			// TODO: why are we calling os.Exit, should return err and propagate properly
-			os.Exit(1)
+			return nil, err
 		}
-		return tok
+		return tok, nil
 
 	case <-time.After(5 * time.Minute):
-		slog.Error("Authorization timeout - no response received within 5 minutes")
-
-		// TODO: why are we calling os.Exit, should return err and propagate properly
-		os.Exit(1)
+		return nil, errors.New("authorization timeout - no response received within 5 minutes")
 	}
-
-	return nil
 }
 
 func readAccessTokenFromFile(file string) (*oauth2.Token, error) {
@@ -166,10 +162,7 @@ func saveToken(path string, token *oauth2.Token) error {
 	slog.Info("Saving credential file", "path", path)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		slog.Error("Unable to cache oauth token", "error", err)
-
-		// TODO: why are we calling os.Exit, should return err and propagate properly
-		os.Exit(1)
+		return err
 	}
 	defer func() { _ = f.Close() }()
 
@@ -187,7 +180,12 @@ func GetGmailService(ctx context.Context, credentialsFile string) (*gmail.Servic
 		return nil, err
 	}
 
-	srv, err := gmail.NewService(ctx, option.WithHTTPClient(getClientWithTokenSource(ctx, config)))
+	client, err := getClientWithTokenSource(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, err
 	}

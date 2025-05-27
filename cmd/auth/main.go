@@ -30,6 +30,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("Authentication successful! Token saved to token.json")
-	slog.Info("✅ Authentication successful! You can now use other commands.")
+	slog.Info("Authentication successful! Token saved to token.json you can now use other commands.")
 }
