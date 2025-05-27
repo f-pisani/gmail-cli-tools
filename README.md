@@ -14,7 +14,7 @@ A command-line tool for downloading and managing Gmail messages with OAuth authe
 ## Installation
 
 ```bash
-go get github.com/yourusername/gmail-cli-tools
+go get github.com/f-pisani/gmail-cli-tools
 ```
 
 Or build from source:

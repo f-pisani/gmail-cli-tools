@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/yourusername/gmail-cli-tools/internal/auth"
-	"github.com/yourusername/gmail-cli-tools/internal/gmail"
-	"github.com/yourusername/gmail-cli-tools/internal/utils"
+	"github.com/f-pisani/gmail-cli-tools/internal/auth"
+	"github.com/f-pisani/gmail-cli-tools/internal/gmail"
+	"github.com/f-pisani/gmail-cli-tools/internal/utils"
 )
 
 func main() {

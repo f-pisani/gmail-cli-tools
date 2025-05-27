@@ -1,4 +1,4 @@
-module github.com/yourusername/gmail-cli-tools
+module github.com/f-pisani/gmail-cli-tools
 
 go 1.24.3
 

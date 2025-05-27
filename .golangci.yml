@@ -32,7 +32,7 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: github.com/yourusername/gmail-cli-tools
+    local-prefixes: github.com/f-pisani/gmail-cli-tools
   govet:
     check-shadowing: true
   errcheck:

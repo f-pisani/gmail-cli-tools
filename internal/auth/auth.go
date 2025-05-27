@@ -16,7 +16,7 @@ import (
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 
-	"github.com/yourusername/gmail-cli-tools/internal/utils"
+	"github.com/f-pisani/gmail-cli-tools/internal/utils"
 )
 
 func getClientWithTokenSource(ctx context.Context, config *oauth2.Config) *http.Client {
