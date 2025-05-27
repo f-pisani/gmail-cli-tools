@@ -1,11 +1,11 @@
 # Gmail CLI Tools
 
-A command-line tool for downloading and managing Gmail messages with OAuth authentication.
+A suite of command-line tools for exporting and managing Gmail messages with OAuth authentication. Export emails to JSONL format for easy processing and analysis.
 
 ## Features
 
 - OAuth2 authentication with Gmail API
-- Download emails to JSONL format
+- Export emails to JSONL format
 - List Gmail labels
 - Export email metadata including attachments
 - Support for large mailboxes (>500 emails)
@@ -52,28 +52,28 @@ go run cmd/list-labels/main.go
 make list-labels
 ```
 
-### Download Emails
+### Export Emails
 ```bash
-# Download emails from INBOX (default)
-go run cmd/download/main.go --label=INBOX --output=emails.jsonl
+# Export emails from INBOX (default)
+go run cmd/export/main.go --label=INBOX --output=emails.jsonl
 
-# Download with attachments
-go run cmd/download/main.go --label=INBOX --download-attachments
+# Export with attachments
+go run cmd/export/main.go --label=INBOX --download-attachments
 
-# Download from custom label with limit
-go run cmd/download/main.go --label="MyLabel" --limit=1000
+# Export from custom label with limit
+go run cmd/export/main.go --label="MyLabel" --limit=1000
 
 # Strip markdown images and links
-go run cmd/download/main.go --markdown-strip-link --markdown-strip-img
+go run cmd/export/main.go --markdown-strip-link --markdown-strip-img
 
 # Use environment variables
 export GMAIL_LABEL="Important"
 export GMAIL_LIMIT=1000
 export GMAIL_STRIP_LINK=true
-go run cmd/download/main.go
+go run cmd/export/main.go
 
 # Or with make
-make download
+make export
 ```
 
 ### Command Options
@@ -84,7 +84,7 @@ make download
 #### list-labels
 - `--credentials-file` - Path to OAuth2 credentials file (default: `credentials.json`, env: `GMAIL_CREDENTIALS_FILE`)
 
-#### download
+#### export
 - `--credentials-file` - Path to OAuth2 credentials file (default: `credentials.json`, env: `GMAIL_CREDENTIALS_FILE`)
 - `--label` - Gmail label to filter emails (default: `INBOX`, env: `GMAIL_LABEL`)
 - `--limit` - Maximum number of emails to retrieve (default: `500`, env: `GMAIL_LIMIT`)
@@ -143,11 +143,6 @@ make build
 make build-all
 ```
 
-### Testing
-```bash
-make test
-```
-
 ### Code Quality
 ```bash
 # Format code
@@ -156,7 +151,7 @@ make fmt
 # Run linter
 make vet
 
-# Run all checks
+# Run all checks (format and vet)
 make check
 ```
 

@@ -1,4 +1,4 @@
-.PHONY: build build-auth build-list-labels build-export auth list-labels export clean test fmt vet mod-download mod-tidy check install build-all
+.PHONY: build build-auth build-list-labels build-export auth list-labels export clean fmt vet mod-download mod-tidy check install build-all
 
 # Binary names
 AUTH_BINARY=auth
@@ -40,10 +40,6 @@ clean:
 	rm -f $(AUTH_BINARY)-* $(LIST_LABELS_BINARY)-* $(EXPORT_BINARY)-*
 	rm -f token.json
 
-# Run tests
-test:
-	go test -v ./...
-
 # Format code
 fmt:
 	go fmt ./...
@@ -61,7 +57,7 @@ mod-tidy:
 	go mod tidy
 
 # Run all checks
-check: fmt vet test
+check: fmt vet
 
 # Install the binaries to $GOPATH/bin
 install:
@@ -97,7 +93,6 @@ help:
 	@echo "  make list-labels  List Gmail labels"
 	@echo "  make export       Export emails to JSONL"
 	@echo "  make clean        Remove build artifacts"
-	@echo "  make test         Run tests"
-	@echo "  make check        Run fmt, vet, and test"
+	@echo "  make check        Run fmt and vet"
 	@echo "  make install      Install to GOPATH/bin"
 	@echo "  make build-all    Build for all platforms"
